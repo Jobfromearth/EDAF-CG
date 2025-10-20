@@ -411,7 +411,7 @@ bonobo::loadTextureCubeMap(std::string const& posx, std::string const& negx,
 	// and `glGenBuffers()` that were used in assignment 2,
 	// `glGenTextures()` can create `n` texture objects at once. Here we
 	// only one texture object that will contain our whole cube map.
-	glGenTextures(1, /*! \todo fill me */nullptr);
+	glGenTextures(1, &texture);
 	assert(texture != 0u);
 
 	// Similarly to vertex arrays and buffers, we first need to bind the
@@ -432,6 +432,16 @@ bonobo::loadTextureCubeMap(std::string const& posx, std::string const& negx,
 	// attend EDAN35 in the next period ;-)
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, generate_mipmap ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+
+	auto const faces = std::array<std::pair<GLenum, std::string>, 6>{
+		std::make_pair(GL_TEXTURE_CUBE_MAP_POSITIVE_X, posx),
+		std::make_pair(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, negx),
+		std::make_pair(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, posy),
+		std::make_pair(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, negy),
+		std::make_pair(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, posz),
+		std::make_pair(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, negz)
+	};
 
 	// We need to fill in the cube map using the images passed in as
 	// argument. The function `getTextureData()` uses stb to read in the
@@ -461,8 +471,56 @@ bonobo::loadTextureCubeMap(std::string const& posx, std::string const& negx,
 	             /* the format of the pixel data: which components are available */GL_RGBA,
 	             /* the type of each component */GL_UNSIGNED_BYTE,
 	             /* the pointer to the actual data on the CPU */reinterpret_cast<GLvoid const*>(data.data()));
-
 	//! \todo repeat now the texture filling for the 5 remaining faces
+
+// +X
+	{
+		std::uint32_t w, h;
+		auto data_px = getTextureData(posx, w, h, false);
+		if (data_px.empty()) { glDeleteTextures(1, &texture); return 0u; }
+		// 可选：assert(w==width && h==height);
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGBA,
+			static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0,
+			GL_RGBA, GL_UNSIGNED_BYTE, data_px.data());
+	}
+	// +Y
+	{
+		std::uint32_t w, h;
+		auto data_py = getTextureData(posy, w, h, false);
+		if (data_py.empty()) { glDeleteTextures(1, &texture); return 0u; }
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGBA,
+			static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0,
+			GL_RGBA, GL_UNSIGNED_BYTE, data_py.data());
+	}
+	// -Y
+	{
+		std::uint32_t w, h;
+		auto data_ny = getTextureData(negy, w, h, false);
+		if (data_ny.empty()) { glDeleteTextures(1, &texture); return 0u; }
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGBA,
+			static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0,
+			GL_RGBA, GL_UNSIGNED_BYTE, data_ny.data());
+	}
+	// +Z
+	{
+		std::uint32_t w, h;
+		auto data_pz = getTextureData(posz, w, h, false);
+		if (data_pz.empty()) { glDeleteTextures(1, &texture); return 0u; }
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGBA,
+			static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0,
+			GL_RGBA, GL_UNSIGNED_BYTE, data_pz.data());
+	}
+	// -Z
+	{
+		std::uint32_t w, h;
+		auto data_nz = getTextureData(negz, w, h, false);
+		if (data_nz.empty()) { glDeleteTextures(1, &texture); return 0u; }
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGBA,
+			static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0,
+			GL_RGBA, GL_UNSIGNED_BYTE, data_nz.data());
+	}
+
+
 
 	if (generate_mipmap)
 		// Generate the mipmap hierarchy; wait for EDAN35 to understand

@@ -26,9 +26,49 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	// milliseconds, the following would have been used:
 	// auto const elapsed_time_ms = std::chrono::duration<float, std::milli>(elapsed_time).count();
 
-	_body.spin.rotation_angle = -glm::half_pi<float>() / 2.0f;
+	// Update the spin angles based on the elapsed time.
+	_body.spin.rotation_angle += _body.spin.speed * elapsed_time_s;
+	// Update the orbit angles based on the elapsed time.
+	_body.orbit.rotation_angle += _body.orbit.speed * elapsed_time_s;
 
-	glm::mat4 world = parent_transform;
+	
+
+	// Tilt matrix around the body's own z axis.
+	glm::mat4 tilt = glm::rotate(glm::mat4(1.0f),
+								_body.spin.axial_tilt,
+								glm::vec3(0.0f, 0.0f, 1.0f));
+
+	// Orbit rotation around the parent's y axis.
+	glm::mat4 R_orbit = glm::rotate(glm::mat4(1.0f),
+									_body.orbit.rotation_angle,
+									glm::vec3(0.0f, 1.0f, 0.0f));
+	// Orbit inclination around the parent's z axis.
+	glm::mat4 R_inclination = glm::rotate(glm::mat4(1.0f),
+										  _body.orbit.inclination,
+										  glm::vec3(0.0f, 0.0f, 1.0f));
+	// Translation along the parent's x axis.
+	glm::mat4 T_radius = glm::translate(glm::mat4(1.0f), glm::vec3(_body.orbit.radius, 0.0f, 0.0f));
+	// Full orbit matrix.
+	glm::mat4 orbit =  R_inclination * R_orbit * T_radius;
+
+	// Spin matrix around the body's own y axis.
+	glm::mat4 spin = glm::rotate(glm::mat4(1.0f),
+		_body.spin.rotation_angle,
+		glm::vec3(0.0f, 1.0f, 0.0f));
+
+	glm::mat4 spin_fixed = glm::rotate(glm::mat4(1.0f),
+		-_body.orbit.rotation_angle,
+		glm::vec3(0.0f, 1.0f, 0.0f));
+
+	// Scaling
+	glm::mat4 S = glm::scale(glm::mat4(1.0f), _body.scale);
+
+	glm::mat4 world = parent_transform   * orbit * spin_fixed * tilt * spin * S;
+
+
+	// Construct a children_parent_transform: The scaling and rotation of the Earth do not affect the Moon.
+	glm::mat4 children_parent_transform = parent_transform   * orbit * tilt;
+	
 
 	if (show_basis)
 	{
@@ -43,7 +83,10 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	// world matrix.
 	_body.node.render(view_projection, world);
 
-	return parent_transform;
+	// for (auto* child : _children) { child->render(elapsed_time, view_projection, world, show_basis); }
+
+	return children_parent_transform;  
+	// return parent_transform;
 }
 
 void CelestialBody::add_child(CelestialBody* child)

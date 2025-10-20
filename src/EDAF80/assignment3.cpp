@@ -75,6 +75,21 @@ edaf80::Assignment3::run()
 	if (normal_shader == 0u)
 		LogError("Failed to load normal shader");
 
+	GLuint skybox_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Skybox",
+											{ { ShaderType::vertex,   "EDAF80/skybox.vert" },
+												{ ShaderType::fragment, "EDAF80/skybox.frag" } },
+											skybox_shader);
+	if (skybox_shader == 0u)
+		LogError("Failed to load skybox shader");
+
+	GLuint phong_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Phong",
+		{ { ShaderType::vertex,   "EDAF80/phong.vert" },
+		  { ShaderType::fragment, "EDAF80/phong.frag" } },
+		phong_shader);
+	if (phong_shader == 0u) LogError("Failed to load Phong shader");
+
 	GLuint texcoord_shader = 0u;
 	program_manager.CreateAndRegisterProgram("Texture coords",
 	                                         { { ShaderType::vertex, "EDAF80/texcoord.vert" },
@@ -108,10 +123,26 @@ edaf80::Assignment3::run()
 
 	Node skybox;
 	skybox.set_geometry(skybox_shape);
-	skybox.set_program(&fallback_shader, set_uniforms);
+	skybox.set_program(& skybox_shader, set_uniforms);
+
+	GLuint cubemap = bonobo::loadTextureCubeMap(
+		config::resources_path("cubemaps/NissiBeach2/posx.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negx.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/posy.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negy.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/posz.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negz.jpg"),
+		/*generate_mipmap=*/true
+	);
+	if (cubemap == 0u) LogError("Failed to load cubemap");
+
+	// 4) 绑定到节点（名字要和 shader 里的 uniform 一致：cubemap）
+	skybox.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
 
 	auto demo_shape = parametric_shapes::createSphere(1.5f, 40u, 40u);
-	if (demo_shape.vao == 0u) {
+	if (demo_shape.vao
+
+		== 0u) {
 		LogError("Failed to retrieve the mesh for the demo sphere");
 		return;
 	}
@@ -125,7 +156,17 @@ edaf80::Assignment3::run()
 	Node demo_sphere;
 	demo_sphere.set_geometry(demo_shape);
 	demo_sphere.set_material_constants(demo_material);
-	demo_sphere.set_program(&fallback_shader, phong_set_uniforms);
+	demo_sphere.set_program(&phong_shader, phong_set_uniforms);
+
+	// 绑定纹理：名字要和 FS 里的 uniform 对上
+	GLuint tex_diff = bonobo::loadTexture2D(config::resources_path("textures/leather_red_02_coll1_2k.jpg"), true);
+	GLuint tex_nor = bonobo::loadTexture2D(config::resources_path("textures/leather_red_02_nor_2k.jpg"), true);
+	GLuint tex_rough = bonobo::loadTexture2D(config::resources_path("textures/leather_red_02_rough_2k.jpg"), true);
+
+	demo_sphere.add_texture("diffuse_texture", tex_diff, GL_TEXTURE_2D);
+	demo_sphere.add_texture("normal_texture", tex_nor, GL_TEXTURE_2D);
+	demo_sphere.add_texture("roughness_texture", tex_rough, GL_TEXTURE_2D);
+
 
 
 	glClearDepthf(1.0f);
@@ -198,9 +239,20 @@ edaf80::Assignment3::run()
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		bonobo::changePolygonMode(polygon_mode);
 
+		// 每帧，让天空盒跟随相机
+		// skybox.get_transform().SetTranslate(camera_position);
 
+		// 先画天空盒（不写深度 & 关剔除）
+		/*glDepthMask(GL_FALSE);
+		glDisable(GL_CULL_FACE);*/
 		skybox.render(mCamera.GetWorldToClipMatrix());
+	/*	glDepthMask(GL_TRUE);
+		glEnable(GL_CULL_FACE);*/
+
+		// 再画场景
 		demo_sphere.render(mCamera.GetWorldToClipMatrix());
+
+	
 
 
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

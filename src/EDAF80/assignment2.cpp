@@ -1,4 +1,4 @@
-#include "assignment2.hpp"
+﻿#include "assignment2.hpp"
 #include "interpolation.hpp"
 #include "parametric_shapes.hpp"
 
@@ -43,7 +43,13 @@ void
 edaf80::Assignment2::run()
 {
 	// Load the sphere geometry
-	auto const shape = parametric_shapes::createCircleRing(2.0f, 0.75f, 40u, 4u);
+	auto const shape = parametric_shapes::createSphere(0.15f, 10u, 10u);
+	//// auto const shape = parametric_shapes::createTorus(
+	//	0.3f,   // major_radius (环的主半径)
+	//	0.1f,   // minor_radius (管道半径)
+	//	30u,    // major_split_count (沿圆环方向分段数)
+	//	20u     // minor_split_count (管道方向分段数)
+	//);
 	if (shape.vao == 0u)
 		return;
 
@@ -51,6 +57,7 @@ edaf80::Assignment2::run()
 	mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 1.0f, 9.0f));
 	mCamera.mMouseSensitivity = glm::vec2(0.003f);
 	mCamera.mMovementSpeed = glm::vec3(3.0f); // 3 m/s => 10.8 km/h
+	// mCamera.mWorld.SetRotateX(glm::half_pi<float>());
 
 	// Create the shader programs
 	ShaderProgramManager program_manager;
@@ -106,7 +113,7 @@ edaf80::Assignment2::run()
 
 	auto const light_position = glm::vec3(-2.0f, 4.0f, 2.0f);
 	auto const set_uniforms = [&light_position](GLuint program){
-		glUniform3fv(glGetUniformLocation(program, "light_position"), 1, glm::value_ptr(light_position));
+		glUniform3fv(glGetUniformLocation(program, "light_position"), 1, glm::value_ptr (light_position));
 	};
 
 	// Set the default tensions value; it can always be changed at runtime
@@ -119,7 +126,7 @@ edaf80::Assignment2::run()
 
 	// Set whether to interpolate the position of an object or not; it can
 	// always be changed at runtime through the "Scene Controls" window.
-	bool interpolate = true;
+	bool interpolate = false;
 
 	// Set whether to show the control points or not; it can always be changed
 	// at runtime through the "Scene Controls" window.
@@ -212,20 +219,62 @@ edaf80::Assignment2::run()
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		bonobo::changePolygonMode(polygon_mode);
 
-
 		if (interpolate) {
-			//! \todo Interpolate the movement of a shape between various
-			//!        control points.
+			float segment_duration = 1.0f;
+			int num_points = static_cast<int>(control_point_locations.size());
+			if (num_points < 2) return;
+
+			glm::vec3 pos{};
 			if (use_linear) {
-				//! \todo Compute the interpolated position
-				//!       using the linear interpolation.
+				float total_time = segment_duration * (num_points - 1);
+				float t_global = fmod(elapsed_time_s, total_time);
+				int   i = static_cast<int>(t_global / segment_duration);
+				// The normalization progress within the current segment [0,1]
+				float x = (t_global - i * segment_duration) / segment_duration;
+				// Anti-crossing protection
+				if (i >= num_points - 1) {
+					i = num_points - 2; x = 1.0f;
+				}
+
+				pos = interpolation::evalLERP(
+					control_point_locations[i],
+					control_point_locations[i + 1],
+					x
+				);
 			}
 			else {
-				//! \todo Compute the interpolated position
-				//!       using the Catmull-Rom interpolation;
-				//!       use the `catmull_rom_tension`
-				//!       variable as your tension argument.
+				const float segment_duration = 1.0f; 
+				const int   N = static_cast<int>(control_point_locations.size());
+				if (N < 4) {
+					
+					// plasce the object on the first control point
+					circle_rings.get_transform().SetTranslate(control_point_locations.front());
+				}
+				else {
+
+					// —— close-loop,N segments, p_{i-1}, p_i, p_{i+1}, p_{i+2}]
+					const float total_time = segment_duration * N;
+					const float t_global = std::fmod(elapsed_time_s, total_time);
+					const int   i = static_cast<int>(t_global / segment_duration); // Current segment number [0..N-1]
+					const float x = (t_global - i * segment_duration) / segment_duration;
+					// The normalization progress within the current segment [0,1]
+
+					const int im1 = (i - 1 + N) % N;
+					const int ip1 = (i + 1) % N;
+					const int ip2 = (i + 2) % N;
+
+					pos = interpolation::evalCatmullRom(
+						control_point_locations[im1],
+						control_point_locations[i],
+						control_point_locations[ip1],
+						control_point_locations[ip2],
+						catmull_rom_tension,
+						x
+					);
+				}
 			}
+
+			circle_rings.get_transform().SetTranslate(pos);
 		}
 
 		circle_rings.render(mCamera.GetWorldToClipMatrix());
