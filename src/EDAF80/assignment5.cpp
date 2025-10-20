@@ -581,10 +581,18 @@ void edaf80::TorusRideGame::render(glm::mat4 const& view_projection)
         GLint light_pos_loc = glGetUniformLocation(torusBasicShader, "light_position");
         GLint light_color_loc = glGetUniformLocation(torusBasicShader, "light_color");
         GLint camera_pos_loc = glGetUniformLocation(torusBasicShader, "camera_position");
+        GLint env_map_loc = glGetUniformLocation(torusBasicShader, "environment_map");
+        GLint has_diffuse_tex_loc = glGetUniformLocation(torusBasicShader, "has_diffuse_texture");
         
         if (light_pos_loc >= 0) glUniform3fv(light_pos_loc, 1, glm::value_ptr(lightPos));
         if (light_color_loc >= 0) glUniform3fv(light_color_loc, 1, glm::value_ptr(lightColor));
         if (camera_pos_loc >= 0) glUniform3fv(camera_pos_loc, 1, glm::value_ptr(cameraPos));
+        if (has_diffuse_tex_loc >= 0) glUniform1i(has_diffuse_tex_loc, 0); // rings: no diffuse texture
+        if (env_map_loc >= 0) {
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
+            glUniform1i(env_map_loc, 1);
+        }
         
         // Render rings using the torus mesh
         for (const auto& ring : rings) {
@@ -615,9 +623,9 @@ void edaf80::TorusRideGame::render(glm::mat4 const& view_projection)
             GLint emissive_loc = glGetUniformLocation(torusBasicShader, "emissive_color");
             
             if (diffuse_loc >= 0) glUniform3f(diffuse_loc, 0.2f, 0.8f, 0.2f); // Green
-            if (specular_loc >= 0) glUniform3f(specular_loc, 0.5f, 0.5f, 0.5f);
-            if (shininess_loc >= 0) glUniform1f(shininess_loc, 32.0f);
-            if (emissive_loc >= 0) glUniform3f(emissive_loc, 0.0f, 0.2f, 0.0f); // Slight green glow
+            if (specular_loc >= 0) glUniform3f(specular_loc, 1.0f, 1.0f, 1.0f); // stronger specular for visible env reflection
+            if (shininess_loc >= 0) glUniform1f(shininess_loc, 64.0f); // sharper highlight
+            if (emissive_loc >= 0) glUniform3f(emissive_loc, 0.0f, 0.0f, 0.0f); // remove emissive to not wash out reflection
             
             // Draw the torus
             glBindVertexArray(torusMesh.vao);
@@ -633,10 +641,18 @@ void edaf80::TorusRideGame::render(glm::mat4 const& view_projection)
         GLint light_pos_loc = glGetUniformLocation(torusBasicShader, "light_position");
         GLint light_color_loc = glGetUniformLocation(torusBasicShader, "light_color");
         GLint camera_pos_loc = glGetUniformLocation(torusBasicShader, "camera_position");
+        GLint env_map_loc = glGetUniformLocation(torusBasicShader, "environment_map");
+        GLint has_diffuse_tex_loc = glGetUniformLocation(torusBasicShader, "has_diffuse_texture");
         
         if (light_pos_loc >= 0) glUniform3fv(light_pos_loc, 1, glm::value_ptr(lightPos));
         if (light_color_loc >= 0) glUniform3fv(light_color_loc, 1, glm::value_ptr(lightColor));
         if (camera_pos_loc >= 0) glUniform3fv(camera_pos_loc, 1, glm::value_ptr(cameraPos));
+        if (has_diffuse_tex_loc >= 0) glUniform1i(has_diffuse_tex_loc, 0); // ship: no diffuse texture bound
+        if (env_map_loc >= 0) {
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
+            glUniform1i(env_map_loc, 1);
+        }
         
         // Render ship using the ship mesh
         glm::mat4 shipTransform = glm::translate(glm::mat4(1.0f), ship.position);
