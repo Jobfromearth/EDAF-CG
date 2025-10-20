@@ -96,7 +96,6 @@ void edaf80::TorusRideGame::initializeGeometry()
     
     // Load textures if available
     GLuint shipTexture = 0u;
-    GLuint ringTexture = 0u;
     
     // Try to load ship texture (if it exists)
     try {
@@ -110,7 +109,7 @@ void edaf80::TorusRideGame::initializeGeometry()
     
     // Try to load ring texture (if it exists)
     try {
-        ringTexture = bonobo::loadTexture2D(config::resources_path("textures/ring_diffuse.jpg"), true);
+        ringTexture = bonobo::loadTexture2D(config::resources_path("textures/leather_red_02_coll1_2k.jpg"), true);
         if (ringTexture != 0u) {
             LogInfo("Loaded ring texture successfully");
         }
@@ -587,11 +586,19 @@ void edaf80::TorusRideGame::render(glm::mat4 const& view_projection)
         if (light_pos_loc >= 0) glUniform3fv(light_pos_loc, 1, glm::value_ptr(lightPos));
         if (light_color_loc >= 0) glUniform3fv(light_color_loc, 1, glm::value_ptr(lightColor));
         if (camera_pos_loc >= 0) glUniform3fv(camera_pos_loc, 1, glm::value_ptr(cameraPos));
-        if (has_diffuse_tex_loc >= 0) glUniform1i(has_diffuse_tex_loc, 0); // rings: no diffuse texture
+        if (has_diffuse_tex_loc >= 0) glUniform1i(has_diffuse_tex_loc, 1); // rings: use diffuse texture
         if (env_map_loc >= 0) {
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
             glUniform1i(env_map_loc, 1);
+        }
+        
+        // Bind ring texture
+        GLint diffuse_tex_loc = glGetUniformLocation(torusBasicShader, "diffuse_texture");
+        if (diffuse_tex_loc >= 0 && ringTexture != 0u) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, ringTexture);
+            glUniform1i(diffuse_tex_loc, 0);
         }
         
         // Render rings using the torus mesh
@@ -622,7 +629,7 @@ void edaf80::TorusRideGame::render(glm::mat4 const& view_projection)
             GLint shininess_loc = glGetUniformLocation(torusBasicShader, "shininess");
             GLint emissive_loc = glGetUniformLocation(torusBasicShader, "emissive_color");
             
-            if (diffuse_loc >= 0) glUniform3f(diffuse_loc, 0.2f, 0.8f, 0.2f); // Green
+            if (diffuse_loc >= 0) glUniform3f(diffuse_loc, 1.0f, 1.0f, 1.0f); // White to show texture
             if (specular_loc >= 0) glUniform3f(specular_loc, 1.0f, 1.0f, 1.0f); // stronger specular for visible env reflection
             if (shininess_loc >= 0) glUniform1f(shininess_loc, 64.0f); // sharper highlight
             if (emissive_loc >= 0) glUniform3f(emissive_loc, 0.0f, 0.0f, 0.0f); // remove emissive to not wash out reflection

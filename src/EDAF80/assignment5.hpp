@@ -67,6 +67,7 @@ namespace edaf80
         GLuint torusBasicShader;
         GLuint skyboxShader;
         GLuint skyboxTexture;
+        GLuint ringTexture;
 		
         // Geometry
         bonobo::mesh_data torusMesh;
