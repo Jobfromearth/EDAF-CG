@@ -49,3 +49,4 @@ void main()
     vec3 final_color = ambient + diffuse + specular + emissive_color;
     frag_color = vec4(final_color, 1.0);
 }
+
