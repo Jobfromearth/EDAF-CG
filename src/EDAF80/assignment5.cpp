@@ -29,7 +29,7 @@ edaf80::TorusRideGame::TorusRideGame(WindowManager& windowManager, InputHandler&
     : windowManager(windowManager), inputHandler(inputHandler), camera(camera),
       currentState(GameStateEnum::NEW_GAME),
       fallbackShader(0u), torusBasicShader(0u), skyboxShader(0u), skyboxTexture(0u),
-      showDebugInfo(true), showControls(true)
+      showDebugInfo(true)
 {
     initializeShaders();
     initializeGeometry();
@@ -702,111 +702,45 @@ void edaf80::TorusRideGame::render(glm::mat4 const& view_projection)
 
 void edaf80::TorusRideGame::renderUI()
 {
-    // Debug info panel
+    // Main game UI panel
     if (showDebugInfo) {
-        bool opened = ImGui::Begin("Torus Ride Debug", &showDebugInfo);
+        bool opened = ImGui::Begin("Torus Ride Game", &showDebugInfo);
         if (opened) {
-            ImGui::Text("=== Ship Info ===");
-            ImGui::Text("Position: (%.2f, %.2f, %.2f)", ship.position.x, ship.position.y, ship.position.z);
-            ImGui::Text("Speed: %.2f", ship.speed_current);
-            
-            ImGui::Separator();
-            ImGui::Text("=== Controls ===");
-            ImGui::Text("W: Move Up");
-            ImGui::Text("S: Move Down");
-            ImGui::Text("A: Move Left");
-            ImGui::Text("D: Move Right");
-            ImGui::Text("R: Reset Game");
-            ImGui::Text("Camera: Auto-follow behind ship");
-            
-            ImGui::Separator();
-            ImGui::Text("=== Game State ===");
-            ImGui::Text("State: %s", 
-                currentState == GameStateEnum::NEW_GAME ? "NEW_GAME" :
-                currentState == GameStateEnum::PLAY_GAME ? "PLAY_GAME" : "END_GAME");
-            ImGui::Text("Time: %.2f", gameState.play_time);
-            ImGui::Text("Score: %d | Combo: %d", gameState.score, gameState.combo);
-            ImGui::Text("Next Ring: %zu / %zu", gameState.next_ring_idx, rings.size());
-            
+            // Game Status Section
+            ImGui::Text("=== Game Status ===");
             if (currentState == GameStateEnum::END_GAME) {
-                ImGui::Separator();
                 ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "GAME OVER!");
-                ImGui::Text("Press R to restart");
-            }
-            
-            ImGui::Separator();
-            ImGui::Text("=== Path Info ===");
-            if (pathGenerator.is_valid()) {
-                ImGui::Text("Path Length: %.2f", pathGenerator.get_total_length());
-                ImGui::Text("Control Points: %zu", pathGenerator.get_control_points().size());
+                ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Press R to restart");
             } else {
-                ImGui::Text("Path: Invalid");
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Playing");
             }
+            
+            ImGui::Text("Score: %d", gameState.score);
+            ImGui::Text("Combo: %d", gameState.combo);
+            ImGui::Text("Time: %.1fs", gameState.play_time);
             
             ImGui::Separator();
-            ImGui::Text("=== Ring Info ===");
-            ImGui::Text("Total Rings: %zu", rings.size());
-            if (!rings.empty()) {
-                int passedCount = 0;
-                int scoredCount = 0;
-                for (const auto& ring : rings) {
-                    if (ring.scored) scoredCount++;
-                }
-                ImGui::Text("Scored: %d", scoredCount);
-            }
-        }
-        ImGui::End();
-    }
-    
-    // Controls panel
-    if (showControls) {
-        bool opened = ImGui::Begin("Torus Ride Controls", &showControls);
-        if (opened) {
-            ImGui::Text("=== Game State ===");
-            ImGui::Text("Current State: %s", 
-                currentState == GameStateEnum::NEW_GAME ? "NEW_GAME" :
-                currentState == GameStateEnum::PLAY_GAME ? "PLAY_GAME" : "END_GAME");
-            if (currentState == GameStateEnum::END_GAME) {
-                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "GAME OVER! Press R to restart");
+            
+            // Controls Section
+            ImGui::Text("=== Controls ===");
+            ImGui::Text("WASD: Move ship");
+            ImGui::Text("R: Reset game");
+            ImGui::Text("F5: Reload shaders");
+            ImGui::Text("F2: Toggle UI");
+            ImGui::Text("F3: Toggle logs");
+            
+            // Collapsible Ship Info
+            if (ImGui::CollapsingHeader("Ship Info")) {
+                ImGui::Text("Position: (%.1f, %.1f, %.1f)", ship.position.x, ship.position.y, ship.position.z);
+                ImGui::Text("Speed: %.1f", ship.speed_current);
+                ImGui::Text("Rings: %zu", rings.size());
             }
             
-            ImGui::Separator();
-            ImGui::Text("=== Game Parameters ===");
-            ImGui::SliderFloat("Ring Spacing", &gameParams.ring_spacing, 5.0f, 20.0f);
-            ImGui::SliderFloat("Ring Radius (R)", &gameParams.ring_R, 1.0f, 5.0f);
-            ImGui::SliderFloat("Ring Thickness (r)", &gameParams.ring_r, 0.1f, 1.0f);
-            ImGui::SliderFloat("Pass Band", &gameParams.pass_band, 0.5f, 3.0f);
-            ImGui::SliderFloat("Assist Strength", &gameParams.assist_strength, 0.0f, 1.0f);
-            
-            ImGui::Separator();
-            ImGui::Text("=== Ship Info ===");
-            ImGui::Text("Position: (%.2f, %.2f, %.2f)", ship.position.x, ship.position.y, ship.position.z);
-            ImGui::Text("Forward: (%.2f, %.2f, %.2f)", ship.forward.x, ship.forward.y, ship.forward.z);
-            ImGui::Text("Speed: %.2f", ship.speed_current);
-            ImGui::Text("Roll: %.2f deg", glm::degrees(ship.roll_angle));
-            ImGui::Text("Pitch: %.2f deg", glm::degrees(ship.pitch_angle));
-            ImGui::Text("Yaw: %.2f deg", glm::degrees(ship.yaw_angle));
-            ImGui::SliderFloat("Ship Speed", &ship.speed_current, ship.speed_min, ship.speed_max);
-            ImGui::SliderFloat("Speed Min", &ship.speed_min, 1.0f, 5.0f);
-            ImGui::SliderFloat("Speed Max", &ship.speed_max, 5.0f, 15.0f);
-            ImGui::SliderFloat("Ship Radius", &ship.radius, 0.1f, 1.0f);
-            
-            if (ImGui::Button("Reset Ship Position")) {
-                ship.position = glm::vec3(0.0f);
-                ship.forward = glm::vec3(0.0f, 0.0f, 1.0f);
-            }
-            
-            if (ImGui::Button("Regenerate Rings")) {
-                initializeTestRings();
-            }
-            
-            ImGui::Separator();
-            ImGui::Text("=== Path Controls ===");
-            if (ImGui::Button("Generate Curved Path")) {
-                initializeTestRings();
-            }
-            if (ImGui::Button("Generate Simple Line")) {
-                generateSimpleLineRings();
+            // Collapsible Graphics Info
+            if (ImGui::CollapsingHeader("Graphics")) {
+                ImGui::Text("Rendering: Phong + IBL");
+                ImGui::Text("Environment: Skybox");
+                ImGui::Text("Textures: Ring material");
             }
         }
         ImGui::End();

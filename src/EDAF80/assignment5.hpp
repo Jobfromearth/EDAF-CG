@@ -86,7 +86,6 @@ namespace edaf80
 		
 		// UI state
 		bool showDebugInfo;
-		bool showControls;
 	};
 
 	//! \brief Wrapper class for Assignment 5
